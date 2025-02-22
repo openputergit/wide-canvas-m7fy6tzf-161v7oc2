@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DrugDiscovery AI - 3D Molecular Viewer</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Add 3Dmol.js -->
+    <script src="https://3Dmol.csb.pitt.edu/build/3Dmol-min.js"></script>
+    <style>
+        .clay-morphism {
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 20px;
+            box-shadow: 
+                20px 20px 60px #bebebe,
+                -20px -20px 60px #ffffff;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            transition: all 0.3s ease;
+        }
+        .clay-morphism:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                25px 25px 65px #bebebe,
+                -25px -25px 65px #ffffff;
+        }
+        body {
+            background: linear-gradient(135deg, #e0f2ff 0%, #c8e6f5 100%);
+            min-height: 100vh;
+        }
+        #viewer {
+            width: 100%;
+            height: 400px;
+            position: relative;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+        }
+        .viewer-controls {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            z-index: 10;
+        }
+        .control-btn {
+            padding: 8px;
+            margin: 2px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: scale(1.1);
+        }
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            border-radius: 15px;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="p-4">
+    <div class="max-w-7xl mx-auto">
+        <header class="clay-morphism p-6 mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 text-center">DrugDiscovery AI</h1>
+            <p class="text-center text-gray-600 mt-2">Advanced Molecular Analysis & Drug Design System</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="clay-morphism p-6">
+                <h2 class="text-xl font-semibold mb-4">Patient Information</h2>
+                <textarea id="patientInfo" class="w-full p-4 rounded-lg border-2 border-blue-100 h-48 focus:outline-none focus:border-blue-300" placeholder="Enter patient symptoms and medical history..."></textarea>
+                <button onclick="analyzePacient()" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white py-2 px-6 rounded-lg transition duration-300 w-full clay-morphism">
+                    Analyze & Generate Compounds
+                </button>
+            </div>
+
+            <div class="clay-morphism p-6">
+                <h2 class="text-xl font-semibold mb-4">3D Molecule Viewer</h2>
+                <div class="relative">
+                    <div id="viewer"></div>
+                    <div class="loading-overlay" id="loading">
+                        <div class="spinner"></div>
+                    </div>
+                    <div class="viewer-controls">
+                        <button class="control-btn" onclick="resetView()">
+                            <i class="bi bi-arrows-angle-contract"></i>
+                        </button>
+                        <button class="control-btn" onclick="toggleSpin()">
+                            <i class="bi bi-arrow-repeat"></i>
+                        </button>
+                        <button class="control-btn" onclick="toggleStyle()">
+                            <i class="bi bi-circle-half"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-8 clay-morphism p-6">
+            <h2 class="text-xl font-semibold mb-4">Generated Compounds</h2>
+            <div id="results" class="space-y-4">
+                <!-- Results will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let viewer;
+        let currentStyle = 'stick';
+        let isSpinning = false;
+
+        // Initialize 3Dmol viewer
+        document.addEventListener('DOMContentLoaded', function() {
+            viewer = $3Dmol.createViewer("viewer", {
+                backgroundColor: "white"
+            });
+            viewer.setStyle({}, {stick:{}});
+            viewer.zoomTo();
+            viewer.render();
+        });
+
+        function toggleSpin() {
+            isSpinning = !isSpinning;
+            if (isSpinning) {
+                viewer.spin(true);
+            } else {
+                viewer.spin(false);
+            }
+        }
+
+        function resetView() {
+            viewer.zoomTo();
+            viewer.spin(false);
+            isSpinning = false;
+        }
+
+        function toggleStyle() {
+            if (currentStyle === 'stick') {
+                viewer.setStyle({}, {sphere:{}});
+                currentStyle = 'sphere';
+            } else {
+                viewer.setStyle({}, {stick:{}});
+                currentStyle = 'stick';
+            }
+            viewer.render();
+        }
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function analyzePacient() {
+            const patientInfo = document.getElementById('patientInfo').value;
+            if (!patientInfo.trim()) {
+                alert('Please enter patient information');
+                return;
+            }
+
+            showLoading();
+
+            // Simulated API response
+            setTimeout(() => {
+                const mockResponse = {
+                    molecules: [
+                        {
+                            smiles: "CC(=O)Oc1ccccc1C(=O)O",
+                            formula: "C9H8O4",
+                            therapeutic_uses: "Pain relief, fever reduction, inflammation",
+                            existing_medications: "Aspirin",
+                            mechanism_of_action: "Inhibits cyclooxygenase (COX) enzymes",
+                            side_effects: "Stomach irritation, bleeding",
+                            target_proteins: ["COX-1", "COX-2"]
+                        },
+                        {
+                            smiles: "CN1C2CCC1CC(C2)OC(=O)C3=CC=CC=C3",
+                            formula: "C17H21NO2",
+                            therapeutic_uses: "Novel pain medication",
+                            existing_medications: "Novel Compound",
+                            mechanism_of_action: "Potential opioid receptor modulation",
+                            side_effects: "Under investigation",
+                            target_proteins: ["µ-Opioid receptor"]
+                        }
+                    ]
+                };
+
+                displayResults(mockResponse);
+                updateMoleculeViewer(mockResponse.molecules[0].smiles);
+                hideLoading();
+            }, 1000);
+        }
+
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+
+            data.molecules.forEach((molecule, index) => {
+                const moleculeCard = document.createElement('div');
+                moleculeCard.className = 'clay-morphism p-4 rounded-lg';
+                moleculeCard.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h3 class="font-bold text-lg">${molecule.existing_medications}</h3>
+                            <p class="text-sm text-gray-600">Formula: ${molecule.formula}</p>
+                            <p class="text-sm text-gray-600 break-all">SMILES: ${molecule.smiles}</p>
+                        </div>
+                        <div>
+                            <p><strong>Therapeutic Uses:</strong> ${molecule.therapeutic_uses}</p>
+                            <p><strong>Mechanism:</strong> ${molecule.mechanism_of_action}</p>
+                            <p><strong>Side Effects:</strong> ${molecule.side_effects}</p>
+                            <p><strong>Targets:</strong> ${molecule.target_proteins.join(', ')}</p>
+                        </div>
+                    </div>
+                    <button onclick="updateMoleculeViewer('${molecule.smiles}')" 
+                            class="mt-4 bg-green-500 hover:bg-green-600 text-white py-1 px-4 rounded-lg transition duration-300">
+                        View Structure
+                    </button>
+                `;
+                resultsDiv.appendChild(moleculeCard);
+            });
+        }
+
+        function updateMoleculeViewer(smiles) {
+            showLoading();
+            viewer.clear();
+            
+            let xhr = new XMLHttpRequest();
+            xhr.open("GET", `https://embed.molview.org/v1/?mode=balls&smiles=${encodeURIComponent(smiles)}`);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    let molData = xhr.responseText;
+                    viewer.addModel(molData, "mol");
+                    viewer.setStyle({}, {stick:{}});
+                    viewer.zoomTo();
+                    viewer.render();
+                    hideLoading();
+                }
+            };
+            xhr.onerror = function() {
+                alert("Error loading molecule");
+                hideLoading();
+            };
+            xhr.send();
+        }
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
